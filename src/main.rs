@@ -1,12 +1,13 @@
+use std::collections::HashSet;
+use std::convert::TryInto;
 use std::env;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use std::convert::TryInto;
-use std::collections::HashSet;
 use std::str::FromStr;
 
 fn print_usage() -> Result<(), String> {
-    eprint!("\
+    eprint!(
+        "\
 dream-sparer: RIFX file reader {} by hikari_no_yume. Copyright 2021.
 MIT licensed.
 
@@ -27,7 +28,9 @@ Optional arguments:
   --dump-all=TYPE   When encountering a chunk of type TYPE, dump it to a file.
                     The files will be named the same way as for --dump.
                     You can specify multiple indices by repeating the argument.
-", env!("CARGO_PKG_VERSION"));
+",
+        env!("CARGO_PKG_VERSION")
+    );
     Ok(())
 }
 
@@ -68,9 +71,9 @@ fn main() -> Result<(), String> {
             return Err(format!("Unknown argument: '{}'", arg));
         } else {
             match filename {
-                Some(_)  => {
+                Some(_) => {
                     return Err(format!("Only one filename can be specified."));
-                },
+                }
                 None => {
                     filename = Some(arg);
                 }
@@ -89,10 +92,7 @@ fn main() -> Result<(), String> {
 
 fn format_fourcc(f: FourCC) -> String {
     if f.is_ascii() {
-        format!(
-            "'{}'",
-            unsafe { std::str::from_utf8_unchecked(&f) }
-        )
+        format!("'{}'", unsafe { std::str::from_utf8_unchecked(&f) })
     } else {
         format!("{:?}", f)
     }
@@ -113,7 +113,9 @@ fn read_u32_le(f: &mut File) -> Result<u32, String> {
     let mut buffer = [0u8; 4];
     f.read_exact(&mut buffer).map_err(convert_io_error)?;
     // Yes this is unsafe. Yes this is the best way to do it.
-    Ok(u32::from_le(unsafe { std::mem::transmute::<[u8; 4], u32>(buffer) }))
+    Ok(u32::from_le(unsafe {
+        std::mem::transmute::<[u8; 4], u32>(buffer)
+    }))
 }
 
 fn read_riff_file(
@@ -123,7 +125,10 @@ fn read_riff_file(
     dump_indices: &HashSet<u32>,
 ) -> Result<(), String> {
     let file_type = read_fourcc(f, false)?;
-    print!("File's magic number/FourCC is {}: ", format_fourcc(file_type));
+    print!(
+        "File's magic number/FourCC is {}: ",
+        format_fourcc(file_type)
+    );
     if file_type == XFIR {
         println!("Little-endian RIFX file.");
     } else {
@@ -135,7 +140,10 @@ fn read_riff_file(
     println!("File size according to RIFF header: {} bytes", file_size);
 
     let file_kind = read_fourcc(f, true)?;
-    println!("File kind according to RIFF header: {}", format_fourcc(file_kind));
+    println!(
+        "File kind according to RIFF header: {}",
+        format_fourcc(file_kind)
+    );
 
     let mut offset: u32 = 12;
     let mut index: u32 = 0;
@@ -147,8 +155,7 @@ fn read_riff_file(
         offset += 8;
 
         let quiet = quiet_fourccs.contains(&chunk_type);
-        let dump = dump_fourccs.contains(&chunk_type) ||
-                   dump_indices.contains(&chunk_index);
+        let dump = dump_fourccs.contains(&chunk_type) || dump_indices.contains(&chunk_index);
         if !quiet {
             println!(
                 "Chunk #{} of type {}, size {} bytes at offset {} bytes",
@@ -168,7 +175,7 @@ fn read_riff_file(
             }
 
             f.seek(SeekFrom::Current(seek_size as i64))
-             .map_err(convert_io_error)?;
+                .map_err(convert_io_error)?;
         } else {
             if !quiet {
                 let filename = format!(
