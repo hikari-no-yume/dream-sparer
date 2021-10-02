@@ -17,7 +17,7 @@ This is a simple Rust project. It uses stable Rust so `cargo build` should be en
 ## Features
 
 ```
-dream-sparer: RIFX file reader 0.1.0 by hikari_no_yume. Copyright 2021.
+dream-sparer: RIFX file reader 0.1.1 by hikari_no_yume. Copyright 2021.
 MIT licensed.
 
 Usage:
@@ -28,13 +28,15 @@ found in the file.
 
 Optional arguments:
 
-  --help        Display this help
-  --quiet=XXXX  Don't print anything for chunk type XXXX.
-                You can use this argument multiple times (for multiple types).
-  --dump=XXXX   When encountering a chunk of type XXXX, dump it to a file.
-                The files will be named like 0000_1234.XXXX where 0000 is the
-                index and 1234 is the byte offset within the file.
-                You can use this argument multiple times (for multiple types).
+  --help            Display this help.
+  --quiet-all=TYPE  Don't print anything for chunk type TYPE.
+                    You can specify multiple types by repeating the argument.
+  --dump=INDEX      When encountering the chunk with the index INDEX, dump it to
+                    a file. The filename will use the format: INDEX_OFFSET.TYPE
+                    You can specify multiple indices by repeating the argument.
+  --dump-all=TYPE   When encountering a chunk of type TYPE, dump it to a file.
+                    The files will be named the same way as for --dump.
+                    You can specify multiple indices by repeating the argument.
 ```
 
 The most useful thing is `--dump`. If you know what kind of chunks contain the stuff you're after, you can use this to extract them and, hopefully, you may be able to do something useful with them. In the case of the game I was interested in, `--dump=sndS` was enough to extract raw PCM sound samples, which I could then throw at Audacity or ffmpeg.

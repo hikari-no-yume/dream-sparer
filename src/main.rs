@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::convert::TryInto;
 use std::collections::HashSet;
+use std::str::FromStr;
 
 fn print_usage() -> Result<(), String> {
     eprint!("\
@@ -17,13 +18,15 @@ found in the file.
 
 Optional arguments:
 
-  --help        Display this help
-  --quiet=XXXX  Don't print anything for chunk type XXXX.
-                You can use this argument multiple times (for multiple types).
-  --dump=XXXX   When encountering a chunk of type XXXX, dump it to a file.
-                The files will be named like 0000_1234.XXXX where 0000 is the
-                index and 1234 is the byte offset within the file.
-                You can use this argument multiple times (for multiple types).
+  --help            Display this help.
+  --quiet-all=TYPE  Don't print anything for chunk type TYPE.
+                    You can specify multiple types by repeating the argument.
+  --dump=INDEX      When encountering the chunk with the index INDEX, dump it to
+                    a file. The filename will use the format: INDEX_OFFSET.TYPE
+                    You can specify multiple indices by repeating the argument.
+  --dump-all=TYPE   When encountering a chunk of type TYPE, dump it to a file.
+                    The files will be named the same way as for --dump.
+                    You can specify multiple indices by repeating the argument.
 ", env!("CARGO_PKG_VERSION"));
     Ok(())
 }
@@ -50,13 +53,17 @@ fn main() -> Result<(), String> {
     let mut filename: Option<&str> = None;
     let mut quiet_fourccs: HashSet<FourCC> = HashSet::new();
     let mut dump_fourccs: HashSet<FourCC> = HashSet::new();
+    let mut dump_indices: HashSet<u32> = HashSet::new();
     for arg in &args[1..] {
         if arg == "--help" {
             return print_usage();
-        } else if let Some(fourcc) = arg.strip_prefix("--quiet=") {
+        } else if let Some(fourcc) = arg.strip_prefix("--quiet-all=") {
             quiet_fourccs.insert(convert_fourcc(fourcc)?);
-        } else if let Some(fourcc) = arg.strip_prefix("--dump=") {
+        } else if let Some(fourcc) = arg.strip_prefix("--dump-all=") {
             dump_fourccs.insert(convert_fourcc(fourcc)?);
+        } else if let Some(index) = arg.strip_prefix("--dump=") {
+            let index = u32::from_str(index).map_err(|e| e.to_string())?;
+            dump_indices.insert(index);
         } else if arg.starts_with("--") {
             return Err(format!("Unknown argument: '{}'", arg));
         } else {
@@ -74,7 +81,7 @@ fn main() -> Result<(), String> {
     if let Some(filename) = filename {
         let mut file = File::open(filename).map_err(convert_io_error)?;
 
-        read_riff_file(&mut file, &quiet_fourccs, &dump_fourccs)
+        read_riff_file(&mut file, &quiet_fourccs, &dump_fourccs, &dump_indices)
     } else {
         Err(format!("No filename was specified."))
     }
@@ -113,6 +120,7 @@ fn read_riff_file(
     f: &mut File,
     quiet_fourccs: &HashSet<FourCC>,
     dump_fourccs: &HashSet<FourCC>,
+    dump_indices: &HashSet<u32>,
 ) -> Result<(), String> {
     let file_type = read_fourcc(f, false)?;
     print!("File's magic number/FourCC is {}: ", format_fourcc(file_type));
@@ -129,19 +137,22 @@ fn read_riff_file(
     let file_kind = read_fourcc(f, true)?;
     println!("File kind according to RIFF header: {}", format_fourcc(file_kind));
 
-    let mut offset = 12;
-    let mut index = 0;
+    let mut offset: u32 = 12;
+    let mut index: u32 = 0;
     while offset < file_size {
         let chunk_type = read_fourcc(f, true)?;
         let chunk_size = read_u32_le(f)?;
         let chunk_offset = offset;
+        let chunk_index = index;
         offset += 8;
 
         let quiet = quiet_fourccs.contains(&chunk_type);
+        let dump = dump_fourccs.contains(&chunk_type) ||
+                   dump_indices.contains(&chunk_index);
         if !quiet {
             println!(
                 "Chunk #{} of type {}, size {} bytes at offset {} bytes",
-                index,
+                chunk_index,
                 format_fourcc(chunk_type),
                 chunk_size,
                 chunk_offset
@@ -151,7 +162,7 @@ fn read_riff_file(
         // RIFF pads chunk sizes to be 2-byte-aligned (the era of “DWORDs”…)
         let seek_size = chunk_size + (chunk_size & 1);
 
-        if !dump_fourccs.contains(&chunk_type) {
+        if !dump {
             if !quiet {
                 println!("(skipping)");
             }
@@ -162,10 +173,9 @@ fn read_riff_file(
             if !quiet {
                 let filename = format!(
                     "{:04}-{}.{}",
-                    index,
+                    chunk_index,
                     chunk_offset,
-                    // We know this is safe because of convert_fourcc
-                    unsafe { std::str::from_utf8_unchecked(&chunk_type) }
+                    std::str::from_utf8(&chunk_type).map_err(|e| e.to_string())?
                 );
                 print!("(dumping to: {}…", filename);
                 let mut buffer = Vec::with_capacity(seek_size as usize);
