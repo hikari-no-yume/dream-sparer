@@ -116,6 +116,7 @@ fn format_fourcc(f: FourCC) -> String {
 }
 
 const XFIR: FourCC = [b'X', b'F', b'I', b'R'];
+const RIFX: FourCC = [b'R', b'I', b'F', b'X'];
 #[allow(non_upper_case_globals)]
 const sndH: FourCC = [b's', b'n', b'd', b'H'];
 
@@ -128,13 +129,14 @@ fn read_fourcc(f: &mut File, byteswap: bool) -> Result<FourCC, String> {
     Ok(buffer)
 }
 
-fn read_u32_le(f: &mut File) -> Result<u32, String> {
+fn read_u32(f: &mut File, little_endian: bool) -> Result<u32, String> {
     let mut buffer = [0u8; 4];
     f.read_exact(&mut buffer).map_err(convert_io_error)?;
-    // Yes this is unsafe. Yes this is the best way to do it.
-    Ok(u32::from_le(unsafe {
-        std::mem::transmute::<[u8; 4], u32>(buffer)
-    }))
+    Ok(if little_endian {
+        u32::from_le_bytes(buffer)
+    } else {
+        u32::from_be_bytes(buffer)
+    })
 }
 
 fn read_riff_file(
@@ -149,17 +151,21 @@ fn read_riff_file(
         "File's magic number/FourCC is {}: ",
         format_fourcc(file_type)
     );
-    if file_type == XFIR {
-        println!("Little-endian RIFX file.");
-    } else {
-        println!("Unknown.");
-        return Err(format!("This format is not supported yet."));
-    }
 
-    let file_size = read_u32_le(f)?;
+    let little_endian = if file_type == XFIR {
+        println!("Little-endian RIFX file.");
+        true
+    } else if file_type == RIFX {
+        println!("Big-endian RIFX file.");
+        false
+    } else {
+        return Err(format!("This format is not supported yet."));
+    };
+
+    let file_size = read_u32(f, little_endian)?;
     println!("File size according to RIFF header: {} bytes", file_size);
 
-    let file_kind = read_fourcc(f, true)?;
+    let file_kind = read_fourcc(f, little_endian)?;
     println!(
         "File kind according to RIFF header: {}",
         format_fourcc(file_kind)
@@ -168,8 +174,8 @@ fn read_riff_file(
     let mut offset: u32 = 12;
     let mut index: u32 = 0;
     while offset < file_size {
-        let chunk_type = read_fourcc(f, true)?;
-        let chunk_size = read_u32_le(f)?;
+        let chunk_type = read_fourcc(f, little_endian)?;
+        let chunk_size = read_u32(f, little_endian)?;
         let chunk_offset = offset;
         let chunk_index = index;
         offset += 8;

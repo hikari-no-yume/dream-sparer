@@ -1,10 +1,10 @@
 # dream-sparer
 
-Simple tool for extracting chunks from little-endian RIFX files.
+Simple tool for extracting chunks from RIFX files.
 
-I wrote this specifically because I wanted to extract the audio files from a certain Macromedia Director game, and apparently Director files use RIFX. (See the section right at the bottom.)
+I wrote this specifically because I wanted to extract the audio files from a certain Macromedia Director game, and apparently Director files use RIFX. (See the section right at the end for more details.) Naturally, the Windows ones are little-endian and the Mac OS ones are big-endian.
 
-It doesn't support anything other than little-endian RIFX currently, but if you would like me to add support for some other variation of RIFF, or some feature related to that, feel free to contact me — I might be interested in helping!
+This doesn't support anything other than little- and big-endian RIFX currently, but if you would like me to add support for e.g. normal RIFF, or something else with some connection to RIFF, feel free to contact me — I might be interested in helping!
 
 ## What's RIFX?
 
@@ -17,7 +17,7 @@ This is a simple Rust project. It uses stable Rust so `cargo build` should be en
 ## Features
 
 ```
-dream-sparer: RIFX file reader 0.2.0 by hikari_no_yume. Copyright 2021.
+dream-sparer: RIFX file reader 0.2.1 by hikari_no_yume. Copyright 2021.
 MIT licensed.
 
 Usage:
