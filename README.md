@@ -8,7 +8,7 @@ This doesn't support anything other than little- and big-endian RIFX currently, 
 
 ## What's RIFX?
 
-RIFF but the FourCC codes have the wrong endianness. Yeah, really…
+A big-endian version of RIFF. But there's also the little-endian version of RIFX (XFIR), which only differs from RIFF in that the FourCC codes are backwards.
 
 ## Building
 
